@@ -1,0 +1,188 @@
+---
+title: "Customs and 'Border' Patrol"
+author: "Will Lowe"
+date: "2/11/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+```
+
+Vox [reminds us](https://www.vox.com/policy-and-politics/2018/2/9/16974510/border-patrol-greyhound-bus-amtrak-train)
+that that US constitutional protections 
+are [weaker](https://www.aclu.org/other/constitution-100-mile-border-zone)
+within 100 miles of a US border.  The consequences are, I think,
+quite surprising.  For example, a majority of states are either partly or entirely 
+inside this 'border' zone.  (I borrowed these scare-quotes from the ACLU).
+
+As a non-American, I don't really expect constitutional protections to be much use to
+me, and as a non-lawyer I don't really have anything terribly insightful to say about
+them either.  However, I do write a lot of R so this seems like a good excuse to
+demonstrate some spatial analysis.  So fire up an RStudio and let's dig into the 
+data.
+
+We're going use `sf`, a nice R package for spatial data analysis, and some helpers
+```{r, message=FALSE}
+library(sf)
+library(dplyr)
+library(ggplot2)
+library(units)
+```
+`dplyr` and `ggplot2` are from the tidyverse and need no introduction.  
+And `units` is useful for converting units.  We'll use it for when we want to 
+translate square kilometers into American.
+
+## US Shapefiles
+
+Let's first pull some recent US state shapefiles from the Census Bureau and 
+unpack them locally.  These are simplified, and are not suitable for fine-grained 
+areal analysis, but we can get an idea of things from them without much wait.
+```{r, eval = FALSE}
+dir.create("data") # a place to put the shapefiles
+download.file("http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_state_20m.zip",
+              "data/cb_2016_us_state_20m.zip")
+unzip("data/cb_2016_us_state_20m.zip", exdir = "data")
+```
+
+For the purposes of figuring out what '100 miles from a US border' means,
+we'll want these polygons in a projection that makes *buffering* easy.
+Here's a fairly standard projection, but you could choose another.
+```{r}
+us_longlat <- st_read("./data/cb_2016_us_state_20m.shp")
+us <- st_transform(us_longlat, "+init=epsg:26978")
+```
+These shapes are in meters, so that's where we'll keep them, and we'll
+need to know that 100 miles in meters is
+```{r}
+meters <- 160934.4
+```
+
+## Identifying the 'Border' Zone
+
+First we'll merge all the states and territories together to get a lump
+of US landmass.
+```{r}
+us_outline <- st_union(us)
+```
+then use buffering to get boundaries for the part of the country 100 miles 
+inside the border - the area in which CBP have reduced powers. 
+The 'border' zone is the region outside this region but inside the national borders
+```{r}
+not_border_zone <- st_buffer(us_outline, dist = -meters) # negative to go inland
+border_zone <- st_difference(us_outline, not_border_zone)
+```
+
+How big is the 'border' zone compared to the whole country?
+```{r}
+border_zone_area <- st_area(border_zone)
+not_border_zone_area <- st_area(not_border_zone)
+
+set_units(border_zone_area, miles^2) # Translate to American
+set_units(not_border_zone_area, miles^2)
+```
+This means that the proportion of US landmass that is in a 'border' zone is
+```{r}
+prop_us_covered <- border_zone_area / (border_zone_area + not_border_zone_area)
+prop_us_covered
+```
+Quite a bit.  Big country - big borders...
+
+## 'Border' States
+
+Now let's compute the proportion of each state that is in the 'border' zone.
+That's just the intersection of the landmass and the 'border' zone.
+```{r}
+overlaps <- st_intersection(us, border_zone)
+```
+The intersection doesn't include states that have no 'border' zone
+so we'll tidy it up into a form that's easy to plot.
+```{r}
+ov_df <- data_frame(NAME = overlaps$NAME, AREA = st_area(overlaps))
+us_df <- data_frame(NAME = us$NAME, AREA = st_area(us))
+covered <- left_join(us_df, ov_df, by = "NAME") %>%
+  mutate(prop = ifelse(is.na(AREA.y), 0, AREA.y / AREA.x),
+         NAME = factor(NAME, levels = NAME[order(prop)])) %>%
+  arrange(desc(prop))
+```
+I've sorted the state and territory names according to their 'border'
+proportions so that ggplot will behave itself.
+
+```{r, fig.height=7, fig.height = 7}
+ggplot(covered, aes(x = NAME, y = 100 * prop)) +
+  geom_point() +
+  coord_flip() +
+  labs(y = "Percent",
+       x = "State / Territory",
+       title = "Percentage of each State or Territory in 'Border' Zone",
+       subtitle = sprintf("Percentage of Total Landmass: %.2f", prop_us_covered)) +
+  theme_minimal()
+```
+
+```{r, eval = FALSE, echo = FALSE}
+# keep a copy
+ggsave("border-zone-proportions-by-state.png", dpi = 300, width = 7, height = 7)
+```
+
+## Maps of the 'Border'
+
+Let's see what this border looks like on a map.  For the sake of 
+readability, we'll do *two* maps: one map for 
+the contiguous United States - that means everything in the Census shapefile
+except for Puerto Rico, Alaska, and Hawaii - and another map for Alaska.
+Puerto Rico and Hawaii are small enough that they're all 'border', so the 
+plot is not so interesting. (But feel free to try it).
+```{r}
+not_contiguous_us <- c("Puerto Rico", "Alaska", "Hawaii")
+
+us_filt <- filter(us, !(NAME %in% not_contiguous_us))
+us_outline <- st_union(us_filt) # contiguous outline
+not_border_zone <- st_buffer(us_outline, dist = -meters) # mainland outline 100m in
+border_zone <- st_difference(us_outline, not_border_zone)
+```
+This time we'll use `sf`'s built in plot command.  This can be done in ggplot2 
+but not in the version that's currently on CRAN, so we'll keep it simple.
+I've added graticules - the projection lines behind the country - 
+because it's a cool word that I learned this afternoon
+while looking up how to do this.
+
+## The 'Border' in the Contiguous United States
+
+```{r}
+plot(st_geometry(us_filt),  lwd = 2,
+     main = "'Border' Zone in Contiguous United States",
+     graticule = TRUE, col = "white", col_graticule = "lightgrey")
+plot(border_zone, lty = "blank", col = rgb(0.7, 0.7, 0.7, 0.4), add = TRUE)
+```
+
+```{r, eval = FALSE, echo = FALSE}
+png("pics/border-zone-contiguous-us.png", width = 8, height = 6.5, units = "in", res = 300)
+plot(st_geometry(us_filt),  lwd = 2,
+     graticule = TRUE, col = "white", col_graticule = "lightgrey")
+plot(border_zone, lty = "blank", col = rgb(0.7, 0.7, 0.7, 0.4), add = TRUE)
+dev.off()
+```
+
+## The 'Border' in Alaska
+
+```{r}
+us_filt <- filter(us, NAME == "Alaska")
+
+us_outline <- st_union(us_filt) # Alaska outline
+not_border_zone <- st_buffer(us_outline, dist = -meters) # Alaska outline 100m in
+border_zone <- st_difference(us_outline, not_border_zone)
+
+plot(st_geometry(us_filt),  lwd = 2,
+     graticule = TRUE, col = "white", col_graticule = "lightgrey")
+plot(border_zone, lty = "blank", col = rgb(0.7, 0.7, 0.7, 0.4), add = TRUE)
+```
+
+```{r eval = FALSE, echo = FALSE}
+png("pics/border-zone-alaska.png", width = 8, height = 6.5, units = "in", res = 300)
+plot(st_geometry(us_filt),  lwd = 2,
+     main = "'Border' Zone in Alaska",
+     graticule = TRUE, col = "white", col_graticule = "lightgrey")
+plot(border_zone, lty = "blank", col = rgb(0.7, 0.7, 0.7, 0.4), add = TRUE)
+dev.off()
+```
+And we're done.
