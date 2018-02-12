@@ -6,15 +6,16 @@ library(sf)
 library(dplyr)
 library(ggplot2)
 library(units)
+library(readr)
 
 ## ---- eval = FALSE-------------------------------------------------------
-dir.create("data") # a place to put the shapefiles
-download.file("http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_state_20m.zip",
-              "data/cb_2016_us_state_20m.zip")
-unzip("data/cb_2016_us_state_20m.zip", exdir = "data")
+## dir.create("data") # a place to put the shapefiles
+## download.file("http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_state_20m.zip",
+##               "data/cb_2016_us_state_20m.zip")
+## unzip("data/cb_2016_us_state_20m.zip", exdir = "data")
 
 ## ------------------------------------------------------------------------
-us_longlat <- st_read("./data/cb_2016_us_state_20m.shp")
+us_longlat <- st_read("./data/cb_2016_us_state_20m/cb_2016_us_state_20m.shp")
 us <- st_transform(us_longlat, "+init=epsg:26978")
 
 ## ------------------------------------------------------------------------
@@ -60,8 +61,8 @@ ggplot(covered, aes(x = NAME, y = 100 * prop)) +
   theme_minimal()
 
 ## ---- eval = FALSE, echo = FALSE-----------------------------------------
-# keep a copy
-ggsave("border-zone-proportions-by-state.png", dpi = 300, width = 7, height = 7)
+## # keep a copy
+## ggsave("pics/border-zone-proportions-by-state.png", dpi = 300, width = 7, height = 7)
 
 ## ------------------------------------------------------------------------
 not_contiguous_us <- c("Puerto Rico", "Alaska", "Hawaii")
@@ -78,11 +79,11 @@ plot(st_geometry(us_filt),  lwd = 2,
 plot(border_zone, lty = "blank", col = rgb(0.7, 0.7, 0.7, 0.4), add = TRUE)
 
 ## ---- eval = FALSE, echo = FALSE-----------------------------------------
-png("pics/border-zone-contiguous-us.png", width = 8, height = 6.5, units = "in", res = 300)
-plot(st_geometry(us_filt),  lwd = 2,
-     graticule = TRUE, col = "white", col_graticule = "lightgrey")
-plot(border_zone, lty = "blank", col = rgb(0.7, 0.7, 0.7, 0.4), add = TRUE)
-dev.off()
+## png("pics/border-zone-contiguous-us.png", width = 8, height = 6.5, units = "in", res = 300)
+## plot(st_geometry(us_filt),  lwd = 2,
+##      graticule = TRUE, col = "white", col_graticule = "lightgrey")
+## plot(border_zone, lty = "blank", col = rgb(0.7, 0.7, 0.7, 0.4), add = TRUE)
+## dev.off()
 
 ## ------------------------------------------------------------------------
 us_filt <- filter(us, NAME == "Alaska")
@@ -96,10 +97,10 @@ plot(st_geometry(us_filt),  lwd = 2,
 plot(border_zone, lty = "blank", col = rgb(0.7, 0.7, 0.7, 0.4), add = TRUE)
 
 ## ----eval = FALSE, echo = FALSE------------------------------------------
-png("pics/border-zone-alaska.png", width = 8, height = 6.5, units = "in", res = 300)
-plot(st_geometry(us_filt),  lwd = 2,
-     main = "'Border' Zone in Alaska",
-     graticule = TRUE, col = "white", col_graticule = "lightgrey")
-plot(border_zone, lty = "blank", col = rgb(0.7, 0.7, 0.7, 0.4), add = TRUE)
-dev.off()
+## png("pics/border-zone-alaska.png", width = 8, height = 6.5, units = "in", res = 300)
+## plot(st_geometry(us_filt),  lwd = 2,
+##      main = "'Border' Zone in Alaska",
+##      graticule = TRUE, col = "white", col_graticule = "lightgrey")
+## plot(border_zone, lty = "blank", col = rgb(0.7, 0.7, 0.7, 0.4), add = TRUE)
+## dev.off()
 
