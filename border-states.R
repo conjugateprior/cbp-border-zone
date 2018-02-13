@@ -40,7 +40,7 @@ set_units(not_border_zone_area, miles^2)
 # Apparently a lot of the US is 'border'
 prop_us_covered <- as.numeric(border_zone_area /
                                 (border_zone_area + not_border_zone_area))
-prop_us_covered
+prop_us_covered # yikes
 
 # How much of each state is 'border' zone?
 us_border <- st_intersection(us, border_zone)
@@ -63,11 +63,8 @@ ggplot(border_areas_by_state, aes(x = state_name, y = 100 * prop)) +
        subtitle = sprintf("Percentage of Total Landmass: %.2f", prop_us_covered)) +
   theme_minimal()
 
-ggsave("pics/border-zone-area-proportions-by-state.png",
-       dpi = 300, width = 7, height = 7)
-
-# Save the result in a form that looks nice in print
-#ggsave("pics/border-zone-proportions-by-state.png", dpi = 300, width = 7, height = 7)
+# ggsave("pics/border-zone-proportions-by-state.png", 
+#        dpi = 300, width = 7, height = 7)
 
 # How does this look with state populations rather than state areas?
 #
@@ -81,10 +78,10 @@ ggsave("pics/border-zone-area-proportions-by-state.png",
 # processing slower. County granularity is enough to get the idea.
 
 # Here's some 2016 county level population data, also from the Census Bureau.
-# (Select the 'United States' link at
+# Select the 'United States' link at
 # https://www.census.gov/data/tables/2016/demo/popest/counties-total.html
-# and download. It will be called PEP_2016_PEPANNRES.zip
-# I will assume you put it in the `data/` folder.
+# and download. When it lands it will be called PEP_2016_PEPANNRES.zip
+# I shall assume you put it in the `data/` folder.
 
 # unzip("data/PEP_2016_PEPANNRES.zip", exdir = "data")
 state_pop <- read_csv("data/PEP_2016_PEPANNRES_with_ann.csv", skip = 2,
@@ -92,10 +89,8 @@ state_pop <- read_csv("data/PEP_2016_PEPANNRES_with_ann.csv", skip = 2,
 names(state_pop) <- c("GEOID", "name", "pop2016")
 
 # Unfortunately it doesn't have Puerto Rico counties in it. However, Puerto
-# Rico is small enough to all be in the 'border' zone, so we can add its
-# population in later.
-
-
+# Rico is small enough to all be in the 'border' zone so we know where it's 
+# going to land
 
 # Get shapefiles for counties from the Census Bureau
 #
@@ -103,8 +98,9 @@ names(state_pop) <- c("GEOID", "name", "pop2016")
 #               "data/cb_2016_us_county_20m.zip")
 # unzip("data/cb_2016_us_county_20m.zip", exdir = "data")
 
-# This data has FIPS codes instead of state names, so we grab a mapping from
+# These shapes have FIPS codes instead of state names, so we'll grab a translation from
 # https://en.wikipedia.org/wiki/Federal_Information_Processing_Standard_state_code
+# and tidy it up with rvest
 #
 fips <- "https://en.wikipedia.org/wiki/Federal_Information_Processing_Standard_state_code"
 state_fips <- read_html(fips) %>%
@@ -113,6 +109,7 @@ state_fips <- read_html(fips) %>%
   setNames(c("state_name", "alpha", "STATEFP", "status")) %>%
   mutate(STATEFP = sprintf("%02d", STATEFP))
 
+# Now to read in the shapes and fold in the state names and the population info
 counties <- st_read("./data/cb_2016_us_county_20m.shp") %>%
   st_transform("+init=epsg:26978") %>%
   filter(STATEFP != 72) %>%               # Remove FIPS code 72 (Puerto Rico)
@@ -128,7 +125,7 @@ not_border_zone <- st_buffer(counties_outline, dist = -meters)
 border_zone <- st_difference(counties_outline, not_border_zone)
 
 # compute overlaps and estimate border population
-overlaps <- st_intersection(counties, border_zone) # slow - about 14s
+overlaps <- st_intersection(counties, border_zone) # slow - about 14s on my laptop
 overlaps <- overlaps %>%
   mutate(STATEFP = as.character(STATEFP),       # for joining later
          border_area = st_area(st_geometry(.)),
@@ -164,10 +161,9 @@ ggplot(border_pops_by_state, aes(x = state_name, y = 100 * prop)) +
                           border_population_us)) +
   theme_minimal()
 
-ggsave("pics/border-zone-pop-proportions-by-state.png", dpi = 300, width = 7, height = 7)
+# ggsave("pics/border-zone-pop-proportions-by-state.png", dpi = 300, width = 7, height = 7)
 
-# let's take a look at the differences between the population and the
-# state area chart
+# Here are the differences between the population and the state area proportions
 differences <- left_join(border_areas_by_state,
                          st_set_geometry(border_pops_by_state, NULL),
                          by = "state_name", suffix = c("_area",  "_pop")) %>%
@@ -183,6 +179,6 @@ ggplot(differences, aes(x = prop_area, y = prop_pop, label = state_name)) +
   ylab("Estimated 'Border' Population Percentage of State") +
   theme_minimal()
 
-ggsave("pics/border-zone-pop-area-diffs-by-state.png", dpi = 300, width = 7, height = 7)
+# ggsave("pics/border-zone-pop-area-diffs-by-state.png", dpi = 300, width = 7, height = 7)
 
 
