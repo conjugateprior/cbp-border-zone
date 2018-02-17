@@ -21,8 +21,11 @@ with state populations (crudely estimated from county level data).
 
 ![](pics/border-zone-pop-proportions-by-state.png)
 
-It's a bit hard to compare these, so here's another way to look at these
-two sets of proportions together  
+On the Twitter version of this graph I forgot to add in Puerto Rico, so the 
+total percentage is a tiny bit higher now.  Sorry Puerto Rico!
+
+It's a bit hard to compare these graphs, so here's another way to look at these
+two sets of proportions together:
 
 ![](pics/border-zone-pop-area-diffs-by-state.png)
 
@@ -35,17 +38,17 @@ consider the big populous counties in California overlapping the 'border' zone
 
 ![](pics/border-zone-california.png)
 
-Take San Bernardino. 
+Take San Bernardino as an example.
 
 ![](pics/san-bernardino.png)
 
-From the census block data it's clear that most of the
-population is going to be in the south west - basically Los Angeles.
+From this census block data it's clear that most of the
+population is going to be in the south west - basically in Los Angeles.
 
-Sure enough, although 25% of the state is in the 'border' zone, more than
-90% of the population are - about 1.5M more people than the simple 
+Sure enough, 25% of the county but maybe 90% of its people are in the 
+'border' zone - around 1.5M more people than the simple 
 interpolation would suggest.  So, while quick to compute, the original 
-numbers are probably on average too small.
+numbers are on average too small.
 
 If you want to check my figures or ask more interesting 
 questions than I did, the R that generated the first two maps is 
