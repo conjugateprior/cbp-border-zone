@@ -63,7 +63,7 @@ ggplot(border_areas_by_state, aes(x = state_name, y = 100 * prop)) +
        subtitle = sprintf("Percentage of Total Landmass: %.2f", prop_us_covered)) +
   theme_minimal()
 
-# ggsave("pics/border-zone-proportions-by-state.png", 
+# ggsave("pics/border-zone-proportions-by-state.png",
 #        dpi = 300, width = 7, height = 7)
 
 # How does this look with state populations rather than state areas?
@@ -89,7 +89,7 @@ state_pop <- read_csv("data/PEP_2016_PEPANNRES_with_ann.csv", skip = 2,
 names(state_pop) <- c("GEOID", "name", "pop2016")
 
 # Unfortunately it doesn't have Puerto Rico counties in it. However, Puerto
-# Rico is small enough to all be in the 'border' zone so we know where it's 
+# Rico is small enough to all be in the 'border' zone so we know where it's
 # going to land
 
 # Get shapefiles for counties from the Census Bureau
@@ -133,6 +133,12 @@ overlaps <- overlaps %>%
          pop2016 = pop2016 * prop_overlap)      # scale population down by overlap
 
 border_population_us <- sum(overlaps$pop2016) / sum(counties$pop2016)
+
+# adjust to add puerto rico population: 3411307 in 2016 according to the CB
+pr_pop <- 3411307
+border_population_us <- (sum(overlaps$pop2016) + pr_pop) /
+  (sum(counties$pop2016) + pr_pop)
+# 0.6119658
 
 # aggregate county population up to state level
 pops_by_state <- counties %>%  # cont
