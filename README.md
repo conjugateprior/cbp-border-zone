@@ -38,7 +38,7 @@ consider the big populous counties in California overlapping the 'border' zone
 
 ![](pics/border-zone-california.png)
 
-Take San Bernardino as an example.
+Take San Bernardino County as an example.
 
 ![](pics/san-bernardino.png)
 
