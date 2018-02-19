@@ -6,9 +6,12 @@ library(ggplot2)
 library(units)
 library(readr)
 library(rvest)
+library(ggrepel)
+library(tmap)
+
 
 # Grab some US state shapefiles from the census bureau
-dir.create("data")
+# dir.create("data")
 # Uncomment the next lines to download and unpack the data
 # download.file("http://www2.census.gov/geo/tiger/GENZ2016/shp/cb_2016_us_state_20m.zip",
 #               "data/cb_2016_us_state_20m.zip")
