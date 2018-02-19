@@ -7,8 +7,6 @@ library(ggrepel)
 library(units)
 library(readr)
 library(rvest)
-library(ggrepel)
-library(tmap)
 
 
 # Grab some US state shapefiles from the census bureau

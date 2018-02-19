@@ -50,14 +50,22 @@ Sure enough, 25% of the county but maybe 90% of its people are in the
 interpolation would suggest.  So, while quick to compute, the original 
 numbers are on average too small.
 
+More color you say? Well, ok. Here are two states up close with county
+populations and 'border' zone marked.
+
+![](pics/border-county-plot-pa.png)
+![](pics/border-county-plot-oh.png)
+
 If you want to check my figures or ask more interesting 
 questions than I did, the R that generated the first two maps is 
 in [border-maps.R](border-maps.R).  The R that generated the proportions
 is in [border-states.R](border-states.R).  And the code that did the California
-comparisons is in [measurement-error.R](measurement-error.R) 
+comparisons is in [measurement-error.R](measurement-error.R). If you want to
+see other states besides Ohio and Pennsylvania, you'll want the function
+in [state-plots.R](state-plots.R).
 
 So have at it - the license just says you shouldn't forget where you found 
 the code. 
 
-Will Lowe. February 16, 2018
+Will Lowe. February 19, 2018
 
