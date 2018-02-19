@@ -3,6 +3,7 @@
 library(sf)
 library(dplyr)
 library(ggplot2)
+library(ggrepel)
 library(units)
 library(readr)
 library(rvest)
@@ -122,6 +123,31 @@ counties <- st_read("./data/cb_2016_us_county_20m.shp") %>%
   inner_join(state_pop, by = "GEOID") %>% # fold in populations
   left_join(state_fips, by = "STATEFP")   # and state names
 
+# Note that CB's ALAND (land area) is almost certainly better, but it's not clear
+# how comparable it is to a crude polgon intersection to get border area...
+# How bad is st_area?
+plot(overlaps$ALAND, as.numeric(overlaps$area),
+     xlab = "ALAND from Census Bureau",
+     ylab = "Estimate from st_area(polygons)",
+     main = "Census Bureau County Areas vs Polygon County Areas")
+overlaps %>%
+  arrange(desc(ALAND)) %>%
+  head(8) %>%
+  with(text(ALAND, area, state_name, pos = 2))
+abline(a = 0, b = 1)
+# Mostly we're wrong about Alaska and a bit of California
+
+# Alaska's sparsely populated so let's see whether these errors will make a
+# difference in more populous spots
+with(overlaps, plot(pop2016, as.numeric(area) - ALAND, log = "x",
+     xlab = "Population (logged)",
+     ylab = "Area Estimation Error",
+     main = "Estimation Errors by Population"))
+overlaps %>%
+  arrange(desc(as.numeric(area) - ALAND)) %>%
+  head(6) %>%
+  with(text(pop2016, as.numeric(area) - ALAND, name, pos = 2))
+
 # The same overlap checking as before, but for smaller units
 counties_outline <- st_union(counties)
 not_border_zone <- st_buffer(counties_outline, dist = -meters)
@@ -137,26 +163,35 @@ overlaps <- overlaps %>%
 
 border_population_us <- sum(overlaps$pop2016) / sum(counties$pop2016)
 
-# adjust to add puerto rico population: 3411307 in 2016 according to the CB
-pr_pop <- 3411307
-border_population_us <- (sum(overlaps$pop2016) + pr_pop) /
-  (sum(counties$pop2016) + pr_pop)
-# 0.6119658
+
+
 
 # aggregate county population up to state level
 pops_by_state <- counties %>%  # cont
   group_by(state_name) %>%
-  summarise(population = sum(pop2016))
+  summarise(population = sum(pop2016)) %>%
+  st_set_geometry(NULL)
 
 # aggregate border county population up to state level
 border_pops_by_state <- overlaps %>%
   group_by(state_name) %>%
-  summarise(population = sum(pop2016))
+  summarise(population = sum(pop2016)) %>%
+  st_set_geometry(NULL)
 
-border_pops_by_state <- left_join(pops_by_state,
-                                  st_set_geometry(border_pops_by_state, NULL),
+# adjust to add puerto rico population: 3411307 in 2016 according to the CB
+pr_pop <- 3411307
+border_pops_by_state <- data.frame(state_name = c(border_pops_by_state$state_name, "Puerto Rico"),
+                                   population = c(border_pops_by_state$population, pr_pop))
+pops_by_state <- data.frame(state_name = c(pops_by_state$state_name, "Puerto Rico"),
+                              population = c(pops_by_state$population, pr_pop))
+border_population_us <- sum(border_pops_by_state$population) /
+  sum(pops_by_state$population)
+# 0.6119658
+
+border_pops_by_state <- left_join(pops_by_state, border_pops_by_state,
                                   by = "state_name", suffix = c("", "_border")) %>%
-  mutate(prop = ifelse(is.na(population_border), 0, population_border / population),
+  mutate(population_border = ifelse(is.na(population_border), 0, population_border),
+         prop = population_border / population,
          state_name = factor(state_name, levels = state_name[order(prop)])) %>%
   arrange(desc(prop))
 
@@ -165,7 +200,7 @@ ggplot(border_pops_by_state, aes(x = state_name, y = 100 * prop)) +
   coord_flip() +
   labs(y = "Percent",
        x = "State",
-       title = "Estimated Percentage of Population in each State in 'Border' Zone",
+       title = "Estimated Percentage of Population in each State / Territory in 'Border' Zone",
        subtitle = sprintf("Estimated Percentage of Total Population: %.2f",
                           border_population_us)) +
   theme_minimal()
@@ -173,8 +208,7 @@ ggplot(border_pops_by_state, aes(x = state_name, y = 100 * prop)) +
 # ggsave("pics/border-zone-pop-proportions-by-state.png", dpi = 300, width = 7, height = 7)
 
 # Here are the differences between the population and the state area proportions
-differences <- left_join(border_areas_by_state,
-                         st_set_geometry(border_pops_by_state, NULL),
+differences <- left_join(border_areas_by_state, border_pops_by_state,
                          by = "state_name", suffix = c("_area",  "_pop")) %>%
   filter(!(prop_area %in% c(0.0, 1.0)))
 
@@ -189,5 +223,6 @@ ggplot(differences, aes(x = prop_area, y = prop_pop, label = state_name)) +
   theme_minimal()
 
 # ggsave("pics/border-zone-pop-area-diffs-by-state.png", dpi = 300, width = 7, height = 7)
+
 
 
